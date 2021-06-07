@@ -10,6 +10,7 @@ stages:
  - build
  - test
  - analyze
+ - docs
  - deploy
 
 default:
@@ -30,7 +31,7 @@ variables:
     LINT_LOG: "eslint-report.xml"
     LINT_MR_LOG: "eslint-mr-report.xml"
 
-image: registry.gitlab.gnome.org/gnome/mutter/fedora/34:x86_64-2021-07-09.1
+image: registry.gitlab.gnome.org/gnome/mutter/fedora/34:x86_64-2021-07-19.1
 
 workflow:
     rules:
@@ -49,7 +50,7 @@ workflow:
 .gnome-shell.fedora:34:
     variables:
         FDO_DISTRIBUTION_VERSION: 34
-        FDO_DISTRIBUTION_TAG: '2021-07-07.1'
+        FDO_DISTRIBUTION_TAG: '2021-07-19.1'
         FDO_UPSTREAM_REPO: GNOME/gnome-shell
         FDO_DISTRIBUTION_PACKAGES: >
             findutils mozjs78-devel nodejs npm meson
@@ -184,7 +185,7 @@ build:
         - meson mutter mutter/build --prefix=/usr
         - ninja -C mutter/build install
     script:
-        - meson . build -Dbuildtype=debugoptimized -Dman=false --werror
+        - meson . build -Dbuildtype=debugoptimized -Dman=false -Dgtk_doc=true --werror
         - ninja -C build
         - ninja -C build install
     artifacts:
@@ -249,3 +250,26 @@ nightly:
   extends: '.publish_nightly'
   variables:
     BUNDLES: '$BUNDLE'
+
+reference:
+    stage: docs
+    needs: ["build"]
+    script:
+        - ninja -C build docs/st docs/shell
+        - mkdir -p reference/
+        - mv build/docs/st/ reference/
+        - mv build/docs/shell/ reference/
+    artifacts:
+        paths:
+            - reference
+
+pages:
+    stage: deploy
+    needs: ['reference']
+    script:
+        - mv reference/ public/
+    artifacts:
+        paths:
+             - public
+    only:
+        - master
